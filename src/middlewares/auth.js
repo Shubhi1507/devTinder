@@ -1,3 +1,5 @@
+const jwt = require("jsonwebtoken");
+
 const adminAuth = (req, res, next) => {
   console.log("Admin auth is getting checked !!! ");
   // Logic to check if request  is authenticated
@@ -11,16 +13,30 @@ const adminAuth = (req, res, next) => {
 };
 
 const userAuth = (req, res, next) => {
-    // steps to implement auth middleware
-    // 1.check the req auth header if key is present or not
-    //2. if no key , error - aunauthorise
-    //3. if key is present - extract the bearer token and verify the hash signature
-    //4. if hash sign is valid , then process witth next()
-    //5. if hash sign is invalid , give error - invalid token
+  // steps to implement auth middleware
+  // 1.check the req auth header if key is present or not
+  //3. if key is present - extract the bearer token and verify the hash signature
+  //4. if hash sign is valid , then process witth next()
 
-  };
+  let token = req.headers.authorization
+    ? req.headers.authorization.split(" ")[1]
+    : "";
+
+  console.log("Incoming Token ====>>>>>", token);
+
+  try {
+    const secretKey = "your_secret_key";
+    const verifyToken = jwt.verify(token, secretKey);
+    console.log("Token verify ===========================", verifyToken);
+
+    next();
+  } catch (error) {
+    console.log("error ========", error.name);
+    res.json({ error: error.message });
+  }
+};
 
 module.exports = {
   adminAuth,
-  userAuth
+  userAuth,
 };

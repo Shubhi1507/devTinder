@@ -20,17 +20,17 @@ app.post("/create", [userAuth], async (req, res) => {
   }
 });
 
-// app.get("/getposts", async (req, res) => {
-//   try {
-//     const allposts = await Post.find({});
-//     res.json({ message: "success", data: allposts });
-//   } catch (error) {
-//     res.status(400).send("Something went wrong");
-//     console.log(error);
-//   }
-// });
+app.get("/getposts", async (req, res) => {
+  try {
+    const allposts = await Post.find({});
+    res.json({ message: "success", data: allposts });
+  } catch (error) {
+    res.status(400).send("Something went wrong");
+    console.log(error);
+  }
+});
 
-// app.delete("/deleteuser", async (req, res) => {
+
 //   const postId = req.body.postId;
 //   console.log("postID", postId);
 //   if(!postId){
@@ -91,8 +91,7 @@ app.post("/login", async (req, res) => {
         const secretKey = "your_secret_key";
         const options = { expiresIn: "1h" }; // Token expires in 1 hour
         const token = jwt.sign(payload, secretKey, options);
-        res.json({token : token , message:"Success" , data:isFound[0]});
-
+        res.json({ token: token, message: "Success", data: isFound[0] });
       }
     } else {
       res.json({ message: "User NOT found" });
@@ -114,7 +113,7 @@ app.post("/signup", async (req, res) => {
   }
 });
 // FEED API - GET/feed get all the users from DB
-app.get("/feed", async (req, res) => {
+app.get("/feed", [userAuth], async (req, res) => {
   try {
     const users = await User.find({});
     res.send(users);
@@ -123,21 +122,9 @@ app.get("/feed", async (req, res) => {
   }
 });
 
-// //Get user by email
-app.get("/user", async (req, res) => {
-  const userEmail = req.body.emailId;
+//Delete User API
 
-  try {
-    const user = await User.find({ emailId: userEmail });
-    res.send(user);
-  } catch (err) {
-    res.status(400).send("Something went wrong");
-  }
-});
-
-// //Delete User API
-
-app.delete("/user", async (req, res) => {
+app.delete("/user", [userAuth], async (req, res) => {
   const userId = req.body.userId;
   try {
     const user = await User.findByIdAndDelete(userId);
@@ -147,9 +134,25 @@ app.delete("/user", async (req, res) => {
   }
 });
 
-// //Update the data of the user
+// delete post
+app.delete("/delete-posts", [userAuth],async (req, res) => {
+  const postId = req.body.postId;
+  console.log("post id ++++++++++++++++", postId);
+  if (!postId) {
+    res.json({ error: "Post ID is missing " });
+  }
+  try {
+    await Post.deleteOne({ postId });
+    res.json({ message: "Post deleted successfully" });
+  } catch (error) {
+    res.status(400).send("Something went wrong");
+  }
+});
 
-app.patch("/user/", async (req, res) => {
+
+//Update the data of the user
+
+app.patch("/user/", [userAuth], async (req, res) => {
   const userId = req.params?.userId;
   const data = req.body;
 
