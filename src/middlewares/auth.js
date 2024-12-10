@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 
 const adminAuth = (req, res, next) => {
   console.log("Admin auth is getting checked !!! ");
@@ -12,7 +13,7 @@ const adminAuth = (req, res, next) => {
   }
 };
 
-const userAuth = (req, res, next) => {
+const userAuth = async (req, res, next) => {
   // steps to implement auth middleware
   // 1.check the req auth header if key is present or not
   //3. if key is present - extract the bearer token and verify the hash signature
@@ -27,8 +28,13 @@ const userAuth = (req, res, next) => {
   try {
     const secretKey = "your_secret_key";
     const verifyToken = jwt.verify(token, secretKey);
-    console.log("Token verify ===========================", verifyToken);
-
+    console.log(
+      "Token verify ===========================",
+      verifyToken.emailId
+    );
+    let user =await User.findOne({ emailId: verifyToken.emailId });
+    console.log("user", user);
+    req.user = user
     next();
   } catch (error) {
     console.log("error ========", error.name);

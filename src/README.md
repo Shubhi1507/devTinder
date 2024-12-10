@@ -4,4 +4,5 @@ USER MODULE -
 
 POST MODULE -
 1. CREATE , UPDATE , DELETE 
-2. User Specific update and delete
+2. User Specific update 
+

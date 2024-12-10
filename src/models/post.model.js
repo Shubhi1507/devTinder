@@ -1,11 +1,12 @@
 const { type } = require("express/lib/response");
 const mongoose = require("mongoose");
+const User = require("./user");
 
 const postSchema = new mongoose.Schema(
   {
-    postId:{
-      type:String ,
-      required:true
+    postId: {
+      type: String,
+      required: true,
     },
     title: {
       type: String,
@@ -17,6 +18,24 @@ const postSchema = new mongoose.Schema(
     },
     image: {
       type: String,
+    },
+
+    createdBy: {
+      // type: mongoose.Schema.ObjectId,
+      // ref: "User",
+      // required: true,
+      type: String,
+      required:true
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now(),
+    },
+
+    updatedAt: {
+      type: Date,
+      default: Date.now(),
     },
   },
   {

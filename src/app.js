@@ -10,8 +10,18 @@ const { userAuth } = require("./middlewares/auth");
 
 app.use(express.json()); //it works for all the routes automatically
 
+app.get("/", [userAuth], async (req, res) => {
+  console.log("req.user", req.user);
+  res.send("ok");
+});
+//POST CREATED
 app.post("/create", [userAuth], async (req, res) => {
-  const post = new Post({ ...req.body, postId: uuidv4() });
+  console.log(req.user);
+  const post = new Post({
+    ...req.body,
+    postId: uuidv4(),
+    createdBy: req.user.emailId,
+  });
   try {
     await post.save();
     res.send("Post has been created");
@@ -29,7 +39,6 @@ app.get("/getposts", async (req, res) => {
     console.log(error);
   }
 });
-
 
 //   const postId = req.body.postId;
 //   console.log("postID", postId);
@@ -89,8 +98,9 @@ app.post("/login", async (req, res) => {
 
         const payload = { emailId: email };
         const secretKey = "your_secret_key";
-        const options = { expiresIn: "1h" }; // Token expires in 1 hour
+        const options = { expiresIn: "1d" }; // Token expires in 1 hour
         const token = jwt.sign(payload, secretKey, options);
+        req.user = isFound[0];
         res.json({ token: token, message: "Success", data: isFound[0] });
       }
     } else {
@@ -135,20 +145,25 @@ app.delete("/user", [userAuth], async (req, res) => {
 });
 
 // delete post
-app.delete("/delete-posts", [userAuth],async (req, res) => {
+app.delete("/delete-posts", [userAuth], async (req, res) => {
   const postId = req.body.postId;
   console.log("post id ++++++++++++++++", postId);
   if (!postId) {
     res.json({ error: "Post ID is missing " });
   }
   try {
-    await Post.deleteOne({ postId });
-    res.json({ message: "Post deleted successfully" });
+    let userEmail = req.user.emailId;
+    const post = await Post.findOne({ postId });
+    if (userEmail == post.createdBy) {
+      await Post.deleteOne({ postId });
+      res.json({ message: "Post deleted successfully" });
+    } else {
+      res.json({ error: "User does not have require permission to DELETE " });
+    }
   } catch (error) {
     res.status(400).send("Something went wrong");
   }
 });
-
 
 //Update the data of the user
 
