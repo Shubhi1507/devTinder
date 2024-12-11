@@ -29,7 +29,7 @@ app.post("/create", [userAuth], async (req, res) => {
     res.status(400).send("Error saving the user :" + error.message);
   }
 });
-
+//GET ALL THE POST
 app.get("/getposts", async (req, res) => {
   try {
     const allposts = await Post.find({});
@@ -165,9 +165,46 @@ app.delete("/delete-posts", [userAuth], async (req, res) => {
   }
 });
 
+//Update POST
+
+app.post("/post/:postId", [userAuth], async (req, res) => {
+  const postId = req.params.postId;
+  if (!postId) {
+    res.json({ error: "Post ID is missing " });
+  }
+  const postData = req.body;
+
+  if (Object.keys(postData).length == 0) {
+    res.json({ error: "Body of the request is missing " });
+  }
+  try {
+    const doesPostExist = await Post.findOne({ postId });
+    console.log("does post exist...", doesPostExist, postData);
+    if (doesPostExist) {
+      let userEmail = req.user.emailId;
+      let createdByPost = doesPostExist.createdBy;
+      if (userEmail == createdByPost) {
+        const post = await Post.findOneAndUpdate(
+          { postId },
+          { $set: postData }
+        );
+        console.log("OK POST CHECK", post);
+        res.json({ message: "post updated succesfully" });
+      } else {
+        res.json({ error: "USER is different " });
+      }
+    } else {
+      res.status(400).json({ error: "No post found" });
+    }
+  } catch (error) {
+    res.status(400).send("Something went wrong");
+    console.log(error);
+  }
+});
+
 //Update the data of the user
 
-app.patch("/user/", [userAuth], async (req, res) => {
+app.patch("/user", [userAuth], async (req, res) => {
   const userId = req.params?.userId;
   const data = req.body;
 
