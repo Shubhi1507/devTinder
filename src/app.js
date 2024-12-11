@@ -225,6 +225,26 @@ app.patch("/user", [userAuth], async (req, res) => {
   }
 });
 
+//Change User Password
+
+app.put("/update-password", [userAuth], async (req, res) => {
+  const { emailId, oldPassword, newPassword } = req.body;
+
+  const userData = await User.findOne({ emailId });
+
+  const dbPasswordUser = userData.password;
+  const isOldPasswordValid = await bcrypt.compare(oldPassword, dbPasswordUser);
+
+  if (!isOldPasswordValid) {
+    res.json({ error: " Old Password does not match" });
+  } else {
+    const newHashedPassword = await bcrypt.hash(newPassword, 10);
+    userData.password = newHashedPassword;
+    await userData.save();
+    res.json({ message: "Password updated successfully " });
+  }
+});
+
 connectDB()
   .then(() => {
     console.log("Database connection established ");
