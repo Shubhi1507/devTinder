@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 const Post = require("./models/post.model");
 const { v4: uuidv4 } = require("uuid");
 const { userAuth } = require("./middlewares/auth");
+const crypto = require("crypto");
+const userActiveModal = require("./models/userActiveSchema");
 
 app.use(express.json()); //it works for all the routes automatically
 
@@ -29,6 +31,61 @@ app.post("/create", [userAuth], async (req, res) => {
     res.status(400).send("Error saving the user :" + error.message);
   }
 });
+// Generate OTP
+
+app.post("/generate-otp", async (req, res) => {
+  try {
+    //1. take email from user and handle case if user doesnt provide email
+    const email = req.body.emailId;
+    if (!email) {
+      return res.json({ error: "Please provide email id " });
+    }
+    //2. cross check the email from DB , if not found then throw error
+    const checkEmailfromDB = await User.findOne({ emailId: email });
+    if (!checkEmailfromDB) {
+      return res.json({ error: "Email does not exist in our DataBase" });
+    }
+    // save the email and generated OTP in DB
+    const generateOTP = crypto.randomInt(100000, 999999);
+    console.log(generateOTP);
+    const newUserActiveInstance = new userActiveModal({
+      emailId: email,
+      otp: generateOTP,
+    });
+    await newUserActiveInstance.save();
+    res.json({ message: "OTP generated successfully", otp: generateOTP });
+  } catch (error) {
+    res.status(400).send("Something went wrong");
+  }
+});
+
+// VERFY the OTP
+app.put("/verify-otp", async (req, res) => {
+  const email = req.body.emailId;
+  const otp = req.body.otp;
+  if (!email || !otp || otp.length != 6) {
+    return res.send({ error: " User Input is invalid" });
+  }
+
+  try {
+    let userFound = await userActiveModal.findOneAndDelete({
+      emailId: email,
+      otp: otp,
+    });
+    console.log(userFound);
+    if (!userFound) {
+      return res.json({ error: "either email or otp is incorrect" });
+    }
+    let user = await User.findOneAndUpdate(
+      { emailId: email },
+      { $set: { isActive: true } }
+    );
+    res.json({ message:"Account activated succesfully" });
+  } catch (error) {
+    res.status(400).send("Something went wrong");
+  }
+});
+
 //GET ALL THE POST
 app.get("/getposts", async (req, res) => {
   try {
@@ -40,46 +97,6 @@ app.get("/getposts", async (req, res) => {
   }
 });
 
-//   const postId = req.body.postId;
-//   console.log("postID", postId);
-//   if(!postId){
-//     res.send({error:"Post Id required"})
-//   }
-//   try {
-//      await User.findByIdAndDelete(postId);
-//     res.send("User deleted successfully");
-//   } catch (err) {
-//     res.status(400).send("Something went wrong");
-//   }
-// });
-
-// app.patch("/updateuser", async (req, res) => {
-//   const postId = req.res?.postId;
-//   const data = req.body;``````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````
-//   if(!postId){
-// res.send({error:"Post ID is Required"})
-//   }
-
-//   try {
-//     const ALLOWED_UPDATES = ["title", "body", "image" ];
-
-//     const isUpdateAllowed = Object.keys(data).every((k) =>
-//       ALLOWED_UPDATES.includes(k)
-//     );
-
-//     if (!isUpdateAllowed) {
-//       throw new Error("Update not allowed");
-//     }
-//     await Post.findByIdAndUpdate({ postId: postId }, data);
-
-//     res.send("User updated succesfull");
-//   } catch (error) {
-//     res.status(400).send("Something went wrong");
-//   }
-// });
-
-/////////////////////////////////////////////////////////////////
-
 app.post("/login", async (req, res) => {
   if (!req.body.emailId || !req.body.password) {
     return res.json({ error: "Email id or password  is missing" });
@@ -87,18 +104,22 @@ app.post("/login", async (req, res) => {
     const email = req.body.emailId;
     const isFound = await User.find({ emailId: email });
     if (isFound.length > 0) {
+      const isActiveFlag = isFound[0].isActive;
+      if (!isActiveFlag) {
+        return res.json({ error: "User is Disabled" });
+      }
       const userPassword = req.body.password;
       const dbPassword = isFound[0].password;
       let result = await bcrypt.compare(userPassword, dbPassword);
 
       if (!result) {
-        res.json({ error: "Password does not match" });
+        return res.json({ error: "Password does not match" });
       } else {
         // res.json({ message: "User has been logged in successfully " });
 
         const payload = { emailId: email };
         const secretKey = "your_secret_key";
-        const options = { expiresIn: "1d" }; // Token expires in 1 hour
+        const options = { expiresIn: "24h" }; // Token expires in 1 hour
         const token = jwt.sign(payload, secretKey, options);
         req.user = isFound[0];
         res.json({ token: token, message: "Success", data: isFound[0] });
@@ -134,12 +155,16 @@ app.get("/feed", [userAuth], async (req, res) => {
 
 //Delete User API
 
-app.delete("/user", [userAuth], async (req, res) => {
-  const userId = req.body.userId;
+app.put("/delete-user", [userAuth], async (req, res) => {
+  const email = req.user.emailId;
+
   try {
-    const user = await User.findByIdAndDelete(userId);
-    res.send("User deleted successfully");
-  } catch (err) {
+    const deleteUser = await User.findOneAndUpdate(
+      { emailId: email },
+      { $set: { isActive: false } }
+    );
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
     res.status(400).send("Something went wrong");
   }
 });
